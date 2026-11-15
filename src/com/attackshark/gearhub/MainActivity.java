@@ -21,8 +21,6 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.WindowInsets;
-import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.ConsoleMessage;
 import android.webkit.CookieManager;
@@ -32,6 +30,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.TextView;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -123,9 +122,17 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+        try {
+            super.onCreate(savedInstanceState);
+            buildUi(savedInstanceState);
+        } catch (Throwable t) {
+            reportStartupCrash(t);
+        }
+    }
+
+    private void buildUi(Bundle savedInstanceState) {
+        GearHubApp.mark(this, "MainActivity.onCreate");
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        enterFullscreen();
 
         shimJs = readAsset("webhid_shim.js");
 
@@ -180,6 +187,8 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
 
         // The whole window is the configurator: no status bar, no buttons.
         setContentView(webView);
+        enterFullscreen();
+        GearHubApp.mark(this, "content view ready");
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -253,8 +262,9 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
         });
 
         webView.loadUrl(START_URL);
+        GearHubApp.mark(this, "page load requested");
 
-        appendLog("GearHub X68HE build 4 (versionName 1.3) starting — auto-connect enabled");
+        appendLog("GearHub build 6 (versionName 1.5), X68 HE driver starting — auto-connect enabled");
         autoConnectHandler.postDelayed(autoConnectTick, AUTO_CONNECT_TICK_MS);
     }
 
@@ -334,23 +344,15 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
 
     @SuppressWarnings("deprecation")
     private void enterFullscreen() {
-        WindowManager.LayoutParams lp = getWindow().getAttributes();
-        if (Build.VERSION.SDK_INT >= 28) {
-            lp.layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-        }
-        getWindow().setAttributes(lp);
-
-        if (Build.VERSION.SDK_INT >= 30) {
-            getWindow().setDecorFitsSystemWindows(false);
-            WindowInsetsController controller = getWindow().getInsetsController();
-            if (controller != null) {
-                controller.hide(WindowInsets.Type.statusBars()
-                        | WindowInsets.Type.navigationBars());
-                controller.setSystemBarsBehavior(
-                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        try {
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            if (Build.VERSION.SDK_INT >= 28) {
+                lp.layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
             }
-        } else {
+            getWindow().setAttributes(lp);
+            // The deprecated flags still work on every API level and avoid
+            // the WindowInsetsController timing issues seen on some ROMs.
             getWindow().getDecorView().setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                             | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -358,6 +360,33 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
                             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                             | View.SYSTEM_UI_FLAG_FULLSCREEN
                             | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+        } catch (Throwable t) {
+            Log.w(TAG, "fullscreen failed: " + t);
+        }
+    }
+
+    private void reportStartupCrash(Throwable t) {
+        String trace = Log.getStackTraceString(t);
+        try {
+            GearHubApp.write(this, GearHubApp.CRASH_FILE, trace);
+            GearHubApp.append(this, GearHubApp.STARTUP_FILE,
+                    "CRASH in onCreate: " + t + "\n");
+        } catch (Throwable ignored) {
+        }
+        try {
+            ClipboardManager clipboard =
+                    (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            clipboard.setPrimaryClip(ClipData.newPlainText("GearHub crash", trace));
+        } catch (Throwable ignored) {
+        }
+        try {
+            TextView view = new TextView(this);
+            view.setText("GearHub could not start the keyboard screen.\n"
+                    + "The trace below is copied to the clipboard.\n\n" + trace);
+            view.setTextSize(11f);
+            view.setPadding(32, 32, 32, 32);
+            setContentView(view);
+        } catch (Throwable ignored) {
         }
     }
 
@@ -463,7 +492,7 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
             text = logBuffer.length() == 0 ? "No log entries yet." : logBuffer.toString();
         }
         new AlertDialog.Builder(this)
-                .setTitle("GearHub X68HE log")
+                .setTitle("GearHub X68 HE log")
                 .setMessage(text)
                 .setPositiveButton("Close", (d, w) -> enterFullscreen())
                 .setNeutralButton("Copy", (d, w) -> copyLog())
@@ -477,7 +506,7 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
         }
         ClipboardManager clipboard =
                 (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        clipboard.setPrimaryClip(ClipData.newPlainText("GearHub X68HE log", text));
+        clipboard.setPrimaryClip(ClipData.newPlainText("GearHub X68 HE log", text));
     }
 
     @Override

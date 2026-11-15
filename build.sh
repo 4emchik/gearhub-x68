@@ -4,10 +4,10 @@ cd "$(dirname "$0")"
 
 SDK="${ANDROID_JAR:-sdk/android.jar}"
 OUT="build"
-APK="GearHubX68.apk"
+APK="GearHub.apk"
 
 rm -rf "$OUT"
-mkdir -p "$OUT/classes" "$OUT/dex"
+mkdir -p "$OUT/classes" "$OUT/dex" "$OUT/gen"
 
 echo "[1/6] aapt2 compile resources"
 aapt2 compile --dir res -o "$OUT/res.zip"
@@ -19,14 +19,15 @@ aapt2 link \
   --manifest AndroidManifest.xml \
   --min-sdk-version 24 \
   --target-sdk-version 32 \
-  --version-code 4 \
-  --version-name 1.3 \
+  --version-code 6 \
+  --version-name 1.5 \
+  --java "$OUT/gen" \
   "$OUT/res.zip"
 
 echo "[3/6] javac"
 if ! javac -source 8 -target 8 -Xlint:-options -classpath "$SDK" \
   -d "$OUT/classes" \
-  $(find src -name '*.java'); then
+  $(find src "$OUT/gen" -name '*.java'); then
   echo "javac failed" >&2
   exit 1
 fi
@@ -37,7 +38,7 @@ d8 --lib "$SDK" --min-api 24 --output "$OUT/dex" \
 
 echo "[5/6] package assets + dex"
 ( cd "$OUT/dex" && zip -q -u ../unsigned.apk classes.dex )
-zip -q -u "$OUT/unsigned.apk" assets/webhid_shim.js
+zip -q -u "$OUT/unsigned.apk" assets/webhid_shim.js assets/x6shim.js
 
 echo "[6/6] sign"
 if [ ! -f debug.keystore ]; then
