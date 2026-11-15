@@ -1,0 +1,11 @@
+# Build outputs
+build/
+*.apk
+*.apk.idsig
+
+# Local Android platform jar (fetch your own, see README)
+sdk/
+
+# Signing material — never commit these
+*.keystore
+*.jks
