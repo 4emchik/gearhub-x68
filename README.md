@@ -67,8 +67,8 @@ important `14763:36883` profile trap.
   device filters contain no `1D57` entries, so the mouse is not listed by the
   configurator.
 - The separate X6 web-driver bridge (`MouseActivity`, `X6Bridge`,
-  `assets/x6shim.js`) is retained in the source but has no launcher entry in
-  1.6. The previous **1.5** release still exposes it behind its chooser.
+  `assets/x6shim.js`) is retained in the source but has no launcher entry
+  since 1.6. The previous **1.5** release still exposes it behind its chooser.
 
 ## Build (Termux)
 
@@ -104,14 +104,34 @@ ANDROID_JAR=/path/to/android.jar ./build.sh
 
 ## Install
 
-Download `GearHub-1.6.apk` from the
+Download `GearHub-1.7.apk` from the
 [Releases](https://github.com/4emchik/gearhub-x68/releases) page, or build it
 yourself. The package name (`com.attackshark.gearhub`) and signing key are
-unchanged, so 1.6 installs over 1.4/1.5 as an in-place update.
+unchanged, so 1.7 installs over 1.4/1.5/1.6 as an in-place update.
 
 Android will ask for USB host permission when a device is connected. Tap
 **Allow**. With both devices attached, expect one prompt for the keyboard and
 one for the X6.
+
+### Play Protect
+
+GearHub is distributed outside Google Play, so Play Protect may show a warning
+the first time a new build is installed. 1.7 targets **API 35**, which removes
+the *"This app was built for an older version of Android and does not include
+the latest privacy protections"* warning that 1.6 and earlier triggered on
+Android 15/16 (the old build targeted API 32, four versions behind).
+
+The remaining prompt — *"Play Protect hasn't seen this app before"* — is normal
+for any newly sideloaded APK whose exact file Google has not scanned yet. It is
+not a malware finding. Tap **Scan app** or **Install anyway**. The check is
+performed by Google Play services, not by the app, so no manifest flag or build
+option can switch it off.
+
+For the smoothest install, download the APK in Chrome and open it from the
+download notification rather than from Termux; Chrome is already a permitted
+install source and its downloads are pre-scanned. Play Protect scanning itself
+can be turned off in **Play Store → profile → Play Protect → gear → Scan apps
+with Play Protect**.
 
 ## Project layout
 
@@ -122,7 +142,7 @@ src/com/attackshark/gearhub/
   WebHidBridge.java                     keyboard USB Host <-> WebHID bridge
   HidDescriptor.java                    HID report-descriptor parser
   UsbPermissionRequester.java           Android USB permission for the X6
-  MouseActivity.java                    X6 WebView shell (retained, not routed in 1.6)
+  MouseActivity.java                    X6 WebView shell (retained, not routed since 1.6)
   X6Bridge.java                         X6 USB Host <-> helper-socket bridge
   GearHubApp.java                       crash capture / startup diagnostics
   CrashActivity.java                    crash screen in a separate process

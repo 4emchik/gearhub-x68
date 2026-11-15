@@ -2,6 +2,12 @@
 
 ## Build history
 
+- **1.7 / versionCode 8** — targetSdk raised from 32 to 35 so Android 15/16
+  no longer shows the Play Protect "built for an older version of Android"
+  warning (that prompt appears when targetSdk is more than two API levels
+  behind the device). No app behaviour changed; still debug-signed, so it
+  installs over 1.5/1.6 as an update.
+  - SHA-256: `33c07559183f4a3121e537403ac939d7b3a474f81692891582faeff119cc6a32`
 - **1.6 / versionCode 7** — no chooser: `MainActivity` is the launcher and
   opens qmk.top directly. Requests Android USB access for both the keyboard
   (via `WebHidBridge`) and the X6 (via `UsbPermissionRequester`). The separate
@@ -33,7 +39,7 @@ APKs are attached to the GitHub releases. The signing keystore is not in the
 repository; keep the same `debug.keystore` locally to install updates over an
 existing build.
 
-## Launcher flow (1.6)
+## Launcher flow (1.6+)
 
 `MainActivity` is the `MAIN`/`LAUNCHER` activity. It loads qmk.top immediately;
 there is no routing screen and no chooser.
@@ -50,7 +56,7 @@ there is no routing screen and no chooser.
 
 qmk.top's filters contain no `1D57` entries, so authorizing the X6 does not
 make it appear in the qmk device list. Its settings are not available in the
-1.6 UI.
+1.7 UI.
 
 ## Keyboard identity (important)
 
@@ -100,7 +106,7 @@ or `shark`), asks the page to open it, and re-attaches after a page reload.
 Android USB permission prompts are rate-limited to one every 20 s so a denial
 cannot cause an endless popup loop. Three-finger tap opens the log.
 
-## X6 protocol (retained, not routed in 1.6)
+## X6 protocol (retained, not routed since 1.6)
 
 - Wireless receiver: `1D57:FA60` (`7511:64096`)
 - Cable: `1D57:FA61` (`7511:64097`)

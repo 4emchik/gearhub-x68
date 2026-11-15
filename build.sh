@@ -18,9 +18,9 @@ aapt2 link \
   -I "$SDK" \
   --manifest AndroidManifest.xml \
   --min-sdk-version 24 \
-  --target-sdk-version 32 \
-  --version-code 7 \
-  --version-name 1.6 \
+  --target-sdk-version 35 \
+  --version-code 8 \
+  --version-name 1.7 \
   --java "$OUT/gen" \
   "$OUT/res.zip"
 

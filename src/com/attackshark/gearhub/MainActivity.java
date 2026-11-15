@@ -269,7 +269,7 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
         webView.loadUrl(START_URL);
         GearHubApp.mark(this, "page load requested");
 
-        appendLog("GearHub build 7 (versionName 1.6), qmk.top starting — auto-connect enabled");
+        appendLog("GearHub build 8 (versionName 1.7), qmk.top starting — auto-connect enabled");
         permissionRequester = new UsbPermissionRequester(this);
         permissionRequester.ensurePermissions();
         autoConnectHandler.postDelayed(autoConnectTick, AUTO_CONNECT_TICK_MS);
