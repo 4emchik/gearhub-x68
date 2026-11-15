@@ -9,17 +9,21 @@ APK="GearHubX68.apk"
 rm -rf "$OUT"
 mkdir -p "$OUT/classes" "$OUT/dex"
 
-echo "[1/5] aapt2 link"
+echo "[1/6] aapt2 compile resources"
+aapt2 compile --dir res -o "$OUT/res.zip"
+
+echo "[2/6] aapt2 link"
 aapt2 link \
   -o "$OUT/unsigned.apk" \
   -I "$SDK" \
   --manifest AndroidManifest.xml \
   --min-sdk-version 24 \
   --target-sdk-version 32 \
-  --version-code 3 \
-  --version-name 1.2
+  --version-code 4 \
+  --version-name 1.3 \
+  "$OUT/res.zip"
 
-echo "[2/5] javac"
+echo "[3/6] javac"
 if ! javac -source 8 -target 8 -Xlint:-options -classpath "$SDK" \
   -d "$OUT/classes" \
   $(find src -name '*.java'); then
@@ -27,15 +31,15 @@ if ! javac -source 8 -target 8 -Xlint:-options -classpath "$SDK" \
   exit 1
 fi
 
-echo "[3/5] d8"
+echo "[4/6] d8"
 d8 --lib "$SDK" --min-api 24 --output "$OUT/dex" \
   $(find "$OUT/classes" -name '*.class')
 
-echo "[4/5] package assets + dex"
+echo "[5/6] package assets + dex"
 ( cd "$OUT/dex" && zip -q -u ../unsigned.apk classes.dex )
 zip -q -u "$OUT/unsigned.apk" assets/webhid_shim.js
 
-echo "[5/5] sign"
+echo "[6/6] sign"
 if [ ! -f debug.keystore ]; then
   keytool -genkeypair -keystore debug.keystore -storepass android \
     -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 \

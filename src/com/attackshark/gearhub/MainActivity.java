@@ -254,7 +254,7 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
 
         webView.loadUrl(START_URL);
 
-        appendLog("GearHub X68HE build 3 (versionName 1.2) starting — auto-connect enabled");
+        appendLog("GearHub X68HE build 4 (versionName 1.3) starting — auto-connect enabled");
         autoConnectHandler.postDelayed(autoConnectTick, AUTO_CONNECT_TICK_MS);
     }
 

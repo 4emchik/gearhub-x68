@@ -2,8 +2,10 @@
 
 ## Build history
 
+- **1.3 / versionCode 4** — keyboard-shaped launcher icon with the Attack
+  Shark mark (adaptive + legacy, square + round). Current build.
 - **1.2 / versionCode 3** — immersive fullscreen, no Connect/Log buttons, no
-  bottom bar, auto-connect watchdog, hidden three-finger log. Current build.
+  bottom bar, auto-connect watchdog, hidden three-finger log.
 - **1.1 / versionCode 2** — first working build (bottom bar with Connect/Log).
   Rollback APK below.
 

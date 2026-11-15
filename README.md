@@ -95,6 +95,9 @@ src/com/attackshark/gearhub/
   WebHidBridge.java                     USB Host <-> WebHID bridge
   HidDescriptor.java                    HID report-descriptor parser
 assets/webhid_shim.js                    navigator.hid polyfill
+res/                                    launcher icon (adaptive + legacy PNGs)
+tools/make_icon.py                      regenerates res/ with Pillow
+tools/shark_mark.png                    alpha cut-out of the Attack Shark mark
 build.sh                                Termux build + sign script
 WORKING.md                              protocol notes / known-good build
 ```
@@ -115,6 +118,9 @@ WORKING.md                              protocol notes / known-good build
   [WebHidBridge-Android-Truthear-Keyx](https://github.com/Halil156/WebHidBridge-Android-Truthear-Keyx)
   by Halil156.
 - Device protocol reverse-engineered from the public qmk.top bundle.
+- The Attack Shark name and logo are trademarks of their respective owner.
+  The launcher icon is fan-made for identification of the keyboard and is not
+  an official Attack Shark product asset.
 
 ## License
 
