@@ -1,5 +1,7 @@
 # GearHub X68HE for Android
 
+<img src="docs/icon.png" width="112" alt="GearHub X68HE app icon">
+
 Unofficial, fullscreen Android app that runs the official
 [GearHub V5 / qmk.top](https://qmk.top/) web configurator for the
 **Attack Shark X68HE** keyboard over USB-C OTG.
