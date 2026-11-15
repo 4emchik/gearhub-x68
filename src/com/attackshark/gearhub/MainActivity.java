@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.net.Uri;
@@ -19,6 +20,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -30,6 +32,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import java.io.ByteArrayInputStream;
@@ -49,8 +52,10 @@ import java.util.regex.Pattern;
  * WebHidBridge over the AndroidHID JavaScript interface, which uses the
  * Android USB Host API.
  *
- * There are no on-screen controls: the keyboard is detected and connected
- * automatically.  A hidden three-finger tap opens the diagnostic log.
+ * There are no startup screens or choosers: the keyboard is detected and
+ * connected automatically.  A hidden three-finger tap opens the diagnostic
+ * log.  If only the X6 is attached, the app opens the mouse configurator;
+ * when both are attached, a small draggable "X6" switch opens it.
  */
 public class MainActivity extends Activity implements WebHidBridge.StatusSink {
 
@@ -76,6 +81,9 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
     private final StringBuilder logBuffer = new StringBuilder();
     private boolean usbReceiverRegistered = false;
     private UsbPermissionRequester permissionRequester;
+    private UsbManager usbManager;
+    private FrameLayout rootLayout;
+    private TextView mouseSwitch;
 
     private boolean foreground = false;
     private boolean pageReady = false;
@@ -114,6 +122,7 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
                     autoConnectHandler.postDelayed(
                             permissionRequester::ensurePermissions, 700L);
                 }
+                updateMouseSwitch();
             } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
                 log("USB device detached"
                         + (device != null ? ": " + device.getDeviceName() : ""));
@@ -121,6 +130,7 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
                     final UsbDevice detached = device;
                     new Thread(() -> bridge.onUsbDetached(detached), "usb-detach").start();
                 }
+                updateMouseSwitch();
             }
         }
     };
@@ -137,6 +147,12 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
 
     private void buildUi(Bundle savedInstanceState) {
         GearHubApp.mark(this, "MainActivity.onCreate");
+        usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+
+        // qmk.top has no X6 profile.  When the mouse is the only device, open
+        // its own configurator straight away instead of an empty qmk screen.
+        if (routeToMouseIfOnlyDevice()) return;
+
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         shimJs = readAsset("webhid_shim.js");
@@ -190,8 +206,23 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
             log("USB hotplug receiver failed: " + e.getMessage());
         }
 
-        // The whole window is the configurator: no status bar, no buttons.
-        setContentView(webView);
+        // The whole window is the configurator.  The only overlay is a tiny,
+        // draggable X6 switch, shown when both devices are attached because
+        // qmk.top itself cannot list the mouse.
+        rootLayout = new FrameLayout(this);
+        rootLayout.addView(webView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+        mouseSwitch = buildMouseSwitch();
+        FrameLayout.LayoutParams switchParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.END);
+        switchParams.rightMargin = dp(10);
+        switchParams.bottomMargin = dp(10);
+        rootLayout.addView(mouseSwitch, switchParams);
+        setContentView(rootLayout);
+        updateMouseSwitch();
         enterFullscreen();
         GearHubApp.mark(this, "content view ready");
 
@@ -269,10 +300,141 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
         webView.loadUrl(START_URL);
         GearHubApp.mark(this, "page load requested");
 
-        appendLog("GearHub build 8 (versionName 1.7), qmk.top starting — auto-connect enabled");
+        appendLog("GearHub build 9 (versionName 1.8), qmk.top starting — auto-connect enabled");
         permissionRequester = new UsbPermissionRequester(this);
         permissionRequester.ensurePermissions();
         autoConnectHandler.postDelayed(autoConnectTick, AUTO_CONNECT_TICK_MS);
+    }
+
+    // ------------------------------------------------------------------
+    // Device routing / X6 switch
+    // ------------------------------------------------------------------
+
+    /**
+     * The X6 is not in qmk.top's device filters.  If it is the only supported
+     * device on the bus, show its own configurator instead of qmk's empty
+     * device list.  When both are attached qmk stays the primary screen and
+     * the small X6 switch opens the mouse page.
+     */
+    private boolean routeToMouseIfOnlyDevice() {
+        if (usbManager == null) return false;
+        UsbDevice mouse = X6Bridge.findDevice(usbManager);
+        if (mouse == null) return false;
+        if (findKeyboard(usbManager) != null) return false;
+
+        Log.d(TAG, "Only the X6 is attached; opening the mouse configurator");
+        try {
+            startActivity(new Intent(this, MouseActivity.class));
+        } catch (Exception e) {
+            Log.w(TAG, "mouse page failed to start: " + e.getMessage());
+            return false;
+        }
+        finish();
+        return true;
+    }
+
+    private static UsbDevice findKeyboard(UsbManager manager) {
+        if (manager == null) return null;
+        try {
+            for (UsbDevice device : manager.getDeviceList().values()) {
+                if (device.getVendorId() == 12625 && device.getProductId() == 20525) {
+                    return device;
+                }
+            }
+            for (UsbDevice device : manager.getDeviceList().values()) {
+                try {
+                    String name = device.getProductName();
+                    if (name == null) continue;
+                    String lower = name.toLowerCase();
+                    if (lower.contains("x68") || lower.contains("attack")
+                            || lower.contains("shark")) {
+                        return device;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    /** Shows the X6 switch only while a receiver or cable is attached. */
+    private void updateMouseSwitch() {
+        if (mouseSwitch == null) return;
+        boolean attached = X6Bridge.findDevice(usbManager) != null;
+        mouseSwitch.setVisibility(attached ? View.VISIBLE : View.GONE);
+    }
+
+    private TextView buildMouseSwitch() {
+        TextView chip = new TextView(this);
+        chip.setText("X6");
+        chip.setTextColor(Color.WHITE);
+        chip.setTextSize(12f);
+        chip.setGravity(Gravity.CENTER);
+        chip.setPadding(dp(12), dp(6), dp(12), dp(6));
+        chip.setContentDescription("Open X6 mouse settings");
+
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(0xCC202124);
+        background.setCornerRadius(dp(16));
+        background.setStroke(dp(1), 0x66FFFFFF);
+        chip.setBackground(background);
+        chip.setAlpha(0.85f);
+        chip.setVisibility(View.GONE);
+
+        chip.setOnClickListener(v ->
+                startActivity(new Intent(this, MouseActivity.class)));
+        chip.setOnTouchListener(new View.OnTouchListener() {
+            private float downX;
+            private float downY;
+            private int startRight;
+            private int startBottom;
+            private boolean dragging;
+
+            @Override
+            public boolean onTouch(View view, MotionEvent event) {
+                FrameLayout.LayoutParams params =
+                        (FrameLayout.LayoutParams) view.getLayoutParams();
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        downX = event.getRawX();
+                        downY = event.getRawY();
+                        startRight = params.rightMargin;
+                        startBottom = params.bottomMargin;
+                        dragging = false;
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        float dx = event.getRawX() - downX;
+                        float dy = event.getRawY() - downY;
+                        if (!dragging && Math.abs(dx) < dp(6) && Math.abs(dy) < dp(6)) {
+                            return true;
+                        }
+                        dragging = true;
+                        int maxRight = Math.max(dp(4),
+                                rootLayout.getWidth() - view.getWidth() - dp(4));
+                        int maxBottom = Math.max(dp(4),
+                                rootLayout.getHeight() - view.getHeight() - dp(4));
+                        params.rightMargin = Math.min(maxRight,
+                                Math.max(dp(4), startRight - (int) dx));
+                        params.bottomMargin = Math.min(maxBottom,
+                                Math.max(dp(4), startBottom - (int) dy));
+                        view.setLayoutParams(params);
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                        if (!dragging) view.performClick();
+                        return true;
+                    case MotionEvent.ACTION_CANCEL:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        });
+        return chip;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     // ------------------------------------------------------------------

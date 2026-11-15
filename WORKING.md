@@ -2,6 +2,11 @@
 
 ## Build history
 
+- **1.8 / versionCode 9** — restores X6 access without a chooser. An X6-only
+  launch opens `MouseActivity`; when both devices are attached, qmk.top opens
+  and a small draggable **X6** switch opens the mouse page. Also carries the
+  1.7 targetSdk 35 fix.
+  - SHA-256: `e10e56b6a72d420319f204cff3f51c8644d1c9f73f91327ec538c2f8d9fefa78`
 - **1.7 / versionCode 8** — targetSdk raised from 32 to 35 so Android 15/16
   no longer shows the Play Protect "built for an older version of Android"
   warning (that prompt appears when targetSdk is more than two API levels
@@ -39,24 +44,26 @@ APKs are attached to the GitHub releases. The signing keystore is not in the
 repository; keep the same `debug.keystore` locally to install updates over an
 existing build.
 
-## Launcher flow (1.6+)
+## Launcher flow (1.8)
 
-`MainActivity` is the `MAIN`/`LAUNCHER` activity. It loads qmk.top immediately;
-there is no routing screen and no chooser.
+`MainActivity` is the `MAIN`/`LAUNCHER` activity. There is no chooser and no
+routing screen.
 
-- The keyboard permission is requested by `WebHidBridge` when qmk.top opens
-  the X68 HE.
+- If only the X6 receiver/cable is attached, `MainActivity` starts
+  `MouseActivity` and finishes, so the mouse configurator opens immediately.
+- Otherwise it loads qmk.top. The keyboard permission is requested by
+  `WebHidBridge` when qmk.top opens the X68 HE.
 - `UsbPermissionRequester` scans the USB bus and requests Android permission
   for an attached X6 receiver (`1D57:FA60`) or cable (`1D57:FA61`).
-- The two requests are intentionally kept separate: the helper does not
-  prompt for the keyboard, so it cannot race `WebHidBridge`'s permission flow.
-- `MouseActivity` and `X6Bridge` are still built into the APK but have no
-  launcher entry. Release 1.5 remains the build with the two-button chooser
-  and the X6 configurator.
+- The two permission requests are intentionally kept separate: the helper does
+  not prompt for the keyboard, so it cannot race `WebHidBridge`'s flow.
+- When both devices are attached, a small draggable **X6** chip is overlaid on
+  the qmk page and opens `MouseActivity`; system Back returns to qmk.
+- `X6Bridge` and `assets/x6shim.js` drive the official mouse page.
 
-qmk.top's filters contain no `1D57` entries, so authorizing the X6 does not
-make it appear in the qmk device list. Its settings are not available in the
-1.7 UI.
+qmk.top's filters contain no `1D57` entries, so the X6 can never appear in the
+qmk device list; the switch is the only route to its settings when the
+keyboard is also plugged in.
 
 ## Keyboard identity (important)
 
@@ -106,7 +113,7 @@ or `shark`), asks the page to open it, and re-attaches after a page reload.
 Android USB permission prompts are rate-limited to one every 20 s so a denial
 cannot cause an endless popup loop. Three-finger tap opens the log.
 
-## X6 protocol (retained, not routed since 1.6)
+## X6 protocol (routed from 1.8)
 
 - Wireless receiver: `1D57:FA60` (`7511:64096`)
 - Cable: `1D57:FA61` (`7511:64097`)
@@ -134,7 +141,7 @@ by `X6Bridge`:
   event is `03 10 10 <stage> 00`. Padded input packets are trimmed to the
   exact lengths the page dispatches on.
 
-When testing the retained mouse path, watch tags `GearHubX6` and
+When testing the mouse path, watch tags `GearHubX6` and
 `SiteConsole`. Expected sequence: permission granted → interface 2 claimed →
 presence routed to `/factorySix` → an ACK `03 10 50 00 04` after each
 `SET_FEATURE`.

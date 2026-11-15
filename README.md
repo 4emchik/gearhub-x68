@@ -6,10 +6,10 @@ Unofficial, fullscreen Android app that runs the official
 [GearHub V5 / qmk.top](https://qmk.top/) configurator for the
 **Attack Shark X68 HE** keyboard over USB-C OTG.
 
-The app also recognizes the **Attack Shark X6** receiver and requests USB host
-access for it, so both devices are authorized when the app starts. qmk.top's
-device list currently exposes the X68 HE only, so this build does not open the
-separate X6 configurator. See [X6](#x6) below.
+The app also supports the **Attack Shark X6** mouse. qmk.top's device list has
+no X6 profile, so GearHub opens the official X6 configurator automatically
+when the mouse is the only device attached, and shows a small draggable "X6"
+switch when both are connected. See [X6](#x6) below.
 
 Android's WebView does not implement WebHID, so this app injects a small
 WebHID polyfill backed by the Android USB Host API. The result is the real PC
@@ -23,6 +23,9 @@ macros, profiles — running on a phone.
   launch, plug-in, and replug.
 - **Both devices authorized.** A connected X6 receiver/cable gets its Android
   USB permission prompt too, so both devices are ready.
+- **X6 support without a chooser.** An X6-only launch opens the official mouse
+  configurator; with both devices attached, a small draggable **X6** switch
+  over qmk.top opens it.
 - **Fullscreen**: no status bar, navigation bar, or app chrome.
 - **No Connect or Log buttons.**
 - **Black-on-white Attack Shark icon**, adaptive and legacy (square + round).
@@ -36,12 +39,13 @@ macros, profiles — running on a phone.
 - USB-C OTG adapter
 - Attack Shark X68 HE, wired
 - Internet access (the configurator is loaded from qmk.top)
-- Optional: Attack Shark X6 receiver/cable, recognized for USB authorization
+- Optional: Attack Shark X6 receiver/cable, configurable through the X6 page
 
 ## How it works
 
-1. `MainActivity` is the launcher and loads `https://qmk.top/` in a WebView
-   with a desktop user agent (the site only enables WebHID mode on desktop).
+1. `MainActivity` is the launcher. If only the X6 is attached it opens
+   `MouseActivity`; otherwise it loads `https://qmk.top/` in a WebView with a
+   desktop user agent (the site only enables WebHID mode on desktop).
 2. The main document is fetched by the app and `assets/webhid_shim.js` is
    injected into `<head>`.
 3. The shim implements `navigator.hid` (`requestDevice`, `getDevices`,
@@ -52,7 +56,9 @@ macros, profiles — running on a phone.
    `UsbDeviceConnection` control transfers.
 5. `UsbPermissionRequester.java` requests access for an attached X6; the
    keyboard permission is requested by `WebHidBridge` when qmk.top opens it.
-6. A watchdog checks for the keyboard every 1.5 s while the app is in the
+6. When both devices are attached, a small draggable **X6** switch opens
+   `MouseActivity`; system Back returns to the qmk page.
+7. A watchdog checks for the keyboard every 1.5 s while the app is in the
    foreground and keeps the page attached.
 
 The X68 HE exposes its configuration endpoint on USB interface 2 as vendor
@@ -63,12 +69,13 @@ important `14763:36883` profile trap.
 ### X6
 
 - USB ID: `1D57:FA60` (2.4 GHz receiver) or `1D57:FA61` (cable).
-- GearHub requests Android USB permission for the receiver, but qmk.top's
-  device filters contain no `1D57` entries, so the mouse is not listed by the
-  configurator.
-- The separate X6 web-driver bridge (`MouseActivity`, `X6Bridge`,
-  `assets/x6shim.js`) is retained in the source but has no launcher entry
-  since 1.6. The previous **1.5** release still exposes it behind its chooser.
+- qmk.top's device filters contain no `1D57` entries, so the mouse cannot
+  appear in qmk's device list.
+- GearHub routes by device instead: an X6-only launch opens `MouseActivity`
+  (the official `szslxd-tech.com` configurator, driven through `X6Bridge` and
+  `assets/x6shim.js`); if both are attached, qmk opens and a small draggable
+  **X6** switch opens the mouse page. Back returns to qmk.
+- Both pages request USB permission and connect automatically.
 
 ## Build (Termux)
 
@@ -104,10 +111,10 @@ ANDROID_JAR=/path/to/android.jar ./build.sh
 
 ## Install
 
-Download `GearHub-1.7.apk` from the
+Download `GearHub-1.8.apk` from the
 [Releases](https://github.com/4emchik/gearhub-x68/releases) page, or build it
 yourself. The package name (`com.attackshark.gearhub`) and signing key are
-unchanged, so 1.7 installs over 1.4/1.5/1.6 as an in-place update.
+unchanged, so 1.8 installs over 1.4–1.7 as an in-place update.
 
 Android will ask for USB host permission when a device is connected. Tap
 **Allow**. With both devices attached, expect one prompt for the keyboard and
@@ -116,10 +123,11 @@ one for the X6.
 ### Play Protect
 
 GearHub is distributed outside Google Play, so Play Protect may show a warning
-the first time a new build is installed. 1.7 targets **API 35**, which removes
-the *"This app was built for an older version of Android and does not include
-the latest privacy protections"* warning that 1.6 and earlier triggered on
-Android 15/16 (the old build targeted API 32, four versions behind).
+the first time a new build is installed. Since 1.7, GearHub targets **API 35**,
+which removes the *"This app was built for an older version of Android and does
+not include the latest privacy protections"* warning that 1.6 and earlier
+triggered on Android 15/16 (the old build targeted API 32, four versions
+behind).
 
 The remaining prompt — *"Play Protect hasn't seen this app before"* — is normal
 for any newly sideloaded APK whose exact file Google has not scanned yet. It is
@@ -142,7 +150,7 @@ src/com/attackshark/gearhub/
   WebHidBridge.java                     keyboard USB Host <-> WebHID bridge
   HidDescriptor.java                    HID report-descriptor parser
   UsbPermissionRequester.java           Android USB permission for the X6
-  MouseActivity.java                    X6 WebView shell (retained, not routed since 1.6)
+  MouseActivity.java                    X6 configurator (auto-routed, or via the X6 switch)
   X6Bridge.java                         X6 USB Host <-> helper-socket bridge
   GearHubApp.java                       crash capture / startup diagnostics
   CrashActivity.java                    crash screen in a separate process
@@ -160,8 +168,11 @@ WORKING.md                              protocol notes / known-good build
 - This is an unofficial project and is not affiliated with Attack Shark,
   GearHub, or the web-driver vendors.
 - The X68 HE path is hardware-verified on a OnePlus CPH2689 running Android 16.
-- qmk.top does not list the X6, so this build has no mouse settings screen.
-  Use the 1.5 release if you need the X6 configurator.
+- qmk.top does not list the X6. GearHub opens the vendor's separate mouse
+  configurator when only the X6 is attached, or through the on-screen **X6**
+  switch when both devices are connected.
+- The X6 configurator path has not been verified on real X6 hardware; the
+  X68 HE keyboard path is the hardware-tested one.
 - Firmware flashing is the riskiest feature. The app does not alter the
   flashing flow, but the phone + OTG path is not what the vendor tested.
   Flash only if you need to.
