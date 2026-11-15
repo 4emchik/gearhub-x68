@@ -1,11 +1,21 @@
 # GearHub X68HE — known-good build
 
-## Working build
+## Build history
+
+- **1.2 / versionCode 3** — immersive fullscreen, no Connect/Log buttons, no
+  bottom bar, auto-connect watchdog, hidden three-finger log. Current build.
+- **1.1 / versionCode 2** — first working build (bottom bar with Connect/Log).
+  Rollback APK below.
+
+## Known-good rollback (1.1)
 
 - Version: 1.1, versionCode 2
-- APK: `/storage/emulated/0/Download/GearHubX68-v1.1-working.apk`
 - SHA-256: `238b13c17b845ec61ff75eefb93cc4ef8a8d3c3d30829ef0a5835414d2e33c11`
 - Verified on: OnePlus CPH2689, Android 16 (API 36), X68HE via USB-C OTG
+
+Both APKs are attached to the GitHub release. The signing keystore is not in
+the repository; keep the same `debug.keystore` locally to install updates over
+an existing build.
 
 ## Keyboard identity (important)
 
@@ -46,6 +56,14 @@ Keep the real `12625:20525` identity in `assets/webhid_shim.js`.
 The prompt shown by the app is Android's USB host permission dialog, not a
 browser permission. Tap **Allow**. The log line `USB permission granted`
 confirms it worked.
+
+## Auto-connect
+
+`MainActivity` runs a 1.5 s watchdog while the app is in the foreground. It
+looks for VID/PID `12625:20525` (or a product name containing `x68`, `attack`
+or `shark`), asks the page to open it, and re-attaches after a page reload.
+Android USB permission prompts are rate-limited to one every 20 s so a denial
+cannot cause an endless popup loop. Three-finger tap opens the log.
 
 ## Build
 
