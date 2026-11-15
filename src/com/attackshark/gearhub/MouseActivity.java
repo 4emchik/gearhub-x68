@@ -242,7 +242,7 @@ public class MouseActivity extends Activity implements X6Bridge.StatusSink {
         webView.loadUrl(START_URL);
         GearHubApp.mark(this, "page load requested");
 
-        appendLog("GearHub build 6 (versionName 1.5), X6 driver starting — auto-connect enabled");
+        appendLog("GearHub build 7 (versionName 1.6), X6 driver starting — auto-connect enabled");
         autoConnectHandler.postDelayed(autoConnectTick, 1200L);
     }
 

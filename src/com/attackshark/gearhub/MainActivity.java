@@ -75,6 +75,7 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
     private String shimJs = "";
     private final StringBuilder logBuffer = new StringBuilder();
     private boolean usbReceiverRegistered = false;
+    private UsbPermissionRequester permissionRequester;
 
     private boolean foreground = false;
     private boolean pageReady = false;
@@ -108,6 +109,10 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
                         + (device != null ? ": " + device.getDeviceName() : ""));
                 if (webView != null) {
                     webView.postDelayed(MainActivity.this::autoConnectOnce, 900);
+                }
+                if (permissionRequester != null) {
+                    autoConnectHandler.postDelayed(
+                            permissionRequester::ensurePermissions, 700L);
                 }
             } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
                 log("USB device detached"
@@ -264,7 +269,9 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
         webView.loadUrl(START_URL);
         GearHubApp.mark(this, "page load requested");
 
-        appendLog("GearHub build 6 (versionName 1.5), X68 HE driver starting — auto-connect enabled");
+        appendLog("GearHub build 7 (versionName 1.6), qmk.top starting — auto-connect enabled");
+        permissionRequester = new UsbPermissionRequester(this);
+        permissionRequester.ensurePermissions();
         autoConnectHandler.postDelayed(autoConnectTick, AUTO_CONNECT_TICK_MS);
     }
 
@@ -533,6 +540,7 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
         if (webView != null) webView.onResume();
         autoConnectHandler.removeCallbacks(autoConnectTick);
         autoConnectHandler.postDelayed(autoConnectTick, AUTO_CONNECT_TICK_MS);
+        if (permissionRequester != null) permissionRequester.ensurePermissions();
     }
 
     @Override
@@ -544,6 +552,10 @@ public class MainActivity extends Activity implements WebHidBridge.StatusSink {
     @Override
     protected void onDestroy() {
         autoConnectHandler.removeCallbacksAndMessages(null);
+        if (permissionRequester != null) {
+            permissionRequester.destroy();
+            permissionRequester = null;
+        }
         if (usbReceiverRegistered) {
             try {
                 unregisterReceiver(usbReceiver);

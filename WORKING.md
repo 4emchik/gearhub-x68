@@ -2,12 +2,17 @@
 
 ## Build history
 
+- **1.6 / versionCode 7** — no chooser: `MainActivity` is the launcher and
+  opens qmk.top directly. Requests Android USB access for both the keyboard
+  (via `WebHidBridge`) and the X6 (via `UsbPermissionRequester`). The separate
+  X6 configurator is retained in the source but has no launcher entry.
+  - SHA-256: `3df96c81a17a9cbea1f2ab4faee2f05e84e258fd52462c10de40a6a7cdfa819f`
+  - Built and signed; keyboard path unchanged from the hardware-verified 1.5.
 - **1.5 / versionCode 6** — combined app: one launcher for the X68 HE keyboard
-  and the X6 mouse. Automatic routing, chooser when both/neither are attached,
-  X6 helper-socket bridge, black-on-white Attack Shark icon. Current build.
+  and the X6 mouse, automatic routing, two-button chooser, X6 helper-socket
+  bridge, black-on-white Attack Shark icon.
   - SHA-256: `8f892de19025584d7fc24b5639cb17a31efc51dcd8198b4c8eec33247eac2d0e`
-  - Verified: keyboard path on OnePlus CPH2689, Android 16 (API 36);
-    X6 path implemented, pending hardware test.
+  - Keyboard path verified on OnePlus CPH2689, Android 16 (API 36).
 - **1.4 / versionCode 5** — crash capture and startup diagnostics; keyboard
   path accepted on hardware.
   - SHA-256: `476101c891a688ab5821c57b011a73781e08766dda7cbfee90e7a8c04a9bec54`
@@ -28,18 +33,24 @@ APKs are attached to the GitHub releases. The signing keystore is not in the
 repository; keep the same `debug.keystore` locally to install updates over an
 existing build.
 
-## Combined app routing
+## Launcher flow (1.6)
 
-`LauncherActivity` is the launcher entry point:
+`MainActivity` is the `MAIN`/`LAUNCHER` activity. It loads qmk.top immediately;
+there is no routing screen and no chooser.
 
-- X68 HE attached (VID/PID `12625:20525`) → `MainActivity` (qmk.top).
-- X6 attached (`1D57:FA60` receiver or `1D57:FA61` cable) → `MouseActivity`
-  (szslxd-tech.com).
-- Both or neither → white chooser with one button per device.
+- The keyboard permission is requested by `WebHidBridge` when qmk.top opens
+  the X68 HE.
+- `UsbPermissionRequester` scans the USB bus and requests Android permission
+  for an attached X6 receiver (`1D57:FA60`) or cable (`1D57:FA61`).
+- The two requests are intentionally kept separate: the helper does not
+  prompt for the keyboard, so it cannot race `WebHidBridge`'s permission flow.
+- `MouseActivity` and `X6Bridge` are still built into the APK but have no
+  launcher entry. Release 1.5 remains the build with the two-button chooser
+  and the X6 configurator.
 
-USB attach/detach broadcasts refresh the chooser, and a lone device that is
-plugged in while the chooser is open is opened automatically. The three-finger
-log still exists on each configurator screen.
+qmk.top's filters contain no `1D57` entries, so authorizing the X6 does not
+make it appear in the qmk device list. Its settings are not available in the
+1.6 UI.
 
 ## Keyboard identity (important)
 
@@ -89,7 +100,7 @@ or `shark`), asks the page to open it, and re-attaches after a page reload.
 Android USB permission prompts are rate-limited to one every 20 s so a denial
 cannot cause an endless popup loop. Three-finger tap opens the log.
 
-## X6 protocol
+## X6 protocol (retained, not routed in 1.6)
 
 - Wireless receiver: `1D57:FA60` (`7511:64096`)
 - Cable: `1D57:FA61` (`7511:64097`)
@@ -117,10 +128,10 @@ by `X6Bridge`:
   event is `03 10 10 <stage> 00`. Padded input packets are trimmed to the
   exact lengths the page dispatches on.
 
-When testing with hardware, watch tags `GearHubX6` and `SiteConsole`. Expected
-sequence: permission granted → interface 2 claimed → presence routed to
-`/factorySix` → an ACK `03 10 50 00 04` after each `SET_FEATURE`. If no ACK
-arrives, revisit the report-ID framing before changing the page flow.
+When testing the retained mouse path, watch tags `GearHubX6` and
+`SiteConsole`. Expected sequence: permission granted → interface 2 claimed →
+presence routed to `/factorySix` → an ACK `03 10 50 00 04` after each
+`SET_FEATURE`.
 
 ## Build
 
